@@ -1,4 +1,5 @@
-const PRIORITIES = new Set(["low", "medium", "high"]);
+export const PRIORITIES = new Set(["low", "medium", "high"]);
+export const STATUSES = new Set(["todo", "done"]);
 const DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 
 export function createTask(name, priority, due) {

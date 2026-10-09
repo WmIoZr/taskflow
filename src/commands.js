@@ -1,5 +1,5 @@
 import { loadData, saveData } from "./storage.js";
-import { createTask } from "./task.js";
+import { createTask, STATUSES, PRIORITIES } from "./task.js";
 
 export async function executeCommand(parsedArgs) {
   switch (parsedArgs.command) {
@@ -14,7 +14,7 @@ export async function executeCommand(parsedArgs) {
     }
 
     case "list": {
-      break;
+      return listTasks(parsedArgs);
     }
 
     case "done": {
@@ -28,6 +28,46 @@ export async function executeCommand(parsedArgs) {
     default: {
       throw new Error(`Unknown command: ${parsedArgs.command}`);
     }
+  }
+}
+
+async function listTasks(parsedArgs) {
+  const data = await loadData();
+  const status = parsedArgs.options.status?.trim().toLowerCase();
+  const priority = parsedArgs.options.priority?.trim().toLowerCase();
+
+  let filteredTasks = data.tasks;
+
+  if (status !== undefined) {
+    checkValueInSet(status, STATUSES);
+    filteredTasks = filteredTasks.filter((task) => task.status === status);
+  }
+
+  if (priority !== undefined) {
+    checkValueInSet(priority, PRIORITIES);
+    filteredTasks = filteredTasks.filter((task) => task.priority === priority);
+  }
+
+  return filteredTasks.length > 0
+    ? `Tasks:\n${formatTasks(filteredTasks)}`
+    : "No tasks found";
+}
+
+function formatTasks(tasks) {
+  return tasks
+    .map(
+      (task) =>
+        `#${task.id} ${task.name} (priority: ${task.priority}, ` +
+        `due: ${task.due ?? "No deadline"}, status: ${task.status})`,
+    )
+    .join("\n");
+}
+
+function checkValueInSet(value, set) {
+  if (!set.has(value)) {
+    throw new Error(
+      `Invalid value passed: ${value}. Expected ${[...set].join(", ")}`,
+    );
   }
 }
 
