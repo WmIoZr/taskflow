@@ -1,4 +1,4 @@
-import { parseArgs } from "./parser/parser.js";
+import { parseArgs } from "./src/parser.js";
 
 try {
     console.log(parseArgs(process.argv));
