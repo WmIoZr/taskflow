@@ -22,13 +22,76 @@ export async function executeCommand(parsedArgs) {
     }
 
     case "stats": {
-      break;
+      return provideStats();
     }
 
     default: {
       throw new Error(`Unknown command: ${parsedArgs.command}`);
     }
   }
+}
+
+async function provideStats() {
+  const data = await loadData();
+  const tasks = data.tasks;
+
+  if (tasks.length === 0) {
+    return "No tasks to show stats";
+  }
+
+  return getTaskStatusStats(tasks) + getOverdueStats(tasks);
+}
+
+function getOverdueStats(tasks) {
+  const localDateString = getLocalDateString();
+  const overdueTasks = tasks.filter((task) => {
+    if (task.due === null || task.status === "done") return false;
+    return task.due < localDateString;
+  });
+
+  let resultString = "";
+
+  if (overdueTasks.length === 0) {
+    resultString += "No tasks are overdue. Good for you!\n";
+  } else {
+    resultString += `Overdue tasks count: ${overdueTasks.length}. Specifically:\n`;
+
+    for (const overdueTask of overdueTasks) {
+      resultString +=
+        `Task #${overdueTask.id} (${overdueTask.name}, ` +
+        `with ${overdueTask.priority} priority, due: ${overdueTask.due}) is overdue\n`;
+    }
+  }
+
+  return resultString;
+}
+
+function getTaskStatusStats(tasks) {
+  const initialStats = {};
+
+  STATUSES.forEach((value) => (initialStats[value] = 0));
+  const taskStatusCount = tasks.reduce((prev, curr) => {
+    prev[curr.status]++;
+    return prev;
+  }, initialStats);
+
+  let resultString = "";
+
+  for (const status in taskStatusCount) {
+    resultString += `Tasks with status ${status} - ${taskStatusCount[status]}\n`;
+  }
+
+  return resultString;
+}
+
+function getLocalDateString() {
+  const currentDate = new Date();
+
+  return (
+    `${currentDate.getFullYear()}-` +
+    `${String(currentDate.getMonth() + 1).padStart(2, "0")}-` +
+    `${String(currentDate.getDate()).padStart(2, "0")}`
+  );
 }
 
 async function setDoneById(positionalArgs) {
