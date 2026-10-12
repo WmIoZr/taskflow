@@ -10,7 +10,7 @@ export async function executeCommand(parsedArgs) {
     }
 
     case "delete": {
-      break;
+      return deleteById(parsedArgs.positional);
     }
 
     case "list": {
@@ -29,6 +29,36 @@ export async function executeCommand(parsedArgs) {
       throw new Error(`Unknown command: ${parsedArgs.command}`);
     }
   }
+}
+
+async function deleteById(positionalArgs) {
+  const id = checkId(positionalArgs, "delete");
+  const data = await loadData();
+
+  const deleteIdx = data.tasks.findIndex((task) => task.id === id);
+
+  if (deleteIdx === -1) {
+    throw new Error(`Task #${id} not found`);
+  }
+
+  data.tasks.splice(deleteIdx, 1);
+
+  await saveData(data);
+  return `Task #${id} deleted.`;
+}
+
+function checkId(positionalArgs, command) {
+  if (positionalArgs.length !== 1) {
+    throw new Error(`Expected exactly one task id, e.g. ${command} 3`);
+  }
+
+  const id = +positionalArgs[0];
+
+  if (!Number.isInteger(id)) {
+    throw new Error(`Invalid id passed: ${positionalArgs[0]}`);
+  }
+
+  return id;
 }
 
 async function listTasks(parsedArgs) {
