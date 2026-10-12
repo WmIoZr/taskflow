@@ -18,7 +18,7 @@ export async function executeCommand(parsedArgs) {
     }
 
     case "done": {
-      break;
+      return setDoneById(parsedArgs.positional);
     }
 
     case "stats": {
@@ -29,6 +29,27 @@ export async function executeCommand(parsedArgs) {
       throw new Error(`Unknown command: ${parsedArgs.command}`);
     }
   }
+}
+
+async function setDoneById(positionalArgs) {
+  const id = checkId(positionalArgs, "done");
+  const data = await loadData();
+
+  const taskToUpdate = data.tasks.find((task) => task.id === id);
+
+  if (!taskToUpdate) {
+    throw new Error(`Task #${id} not found`);
+  }
+
+  if (taskToUpdate.status === "done") {
+    return `Task #${id} status was already 'done'`;
+  }
+
+  taskToUpdate.status = "done";
+
+  await saveData(data);
+
+  return `Task #${id} status set to 'done'`;
 }
 
 async function deleteById(positionalArgs) {
@@ -44,6 +65,7 @@ async function deleteById(positionalArgs) {
   data.tasks.splice(deleteIdx, 1);
 
   await saveData(data);
+
   return `Task #${id} deleted.`;
 }
 
