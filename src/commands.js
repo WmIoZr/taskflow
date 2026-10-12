@@ -137,13 +137,13 @@ function checkId(positionalArgs, command) {
     throw new Error(`Expected exactly one task id, e.g. ${command} 3`);
   }
 
-  const id = +positionalArgs[0];
+  const raw = positionalArgs[0];
 
-  if (!Number.isInteger(id)) {
-    throw new Error(`Invalid id passed: ${positionalArgs[0]}`);
+  if (!/^\d+$/.test(raw)) {
+    throw new Error(`Invalid id passed: ${raw}`);
   }
 
-  return id;
+  return Number(raw);
 }
 
 async function listTasks(parsedArgs) {
