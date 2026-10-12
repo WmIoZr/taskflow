@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { STATUSES } from "./task.js";
 
@@ -61,9 +61,18 @@ function validateFileStructure(parsed, fileName) {
 }
 
 async function writeData(fileName, data) {
-  await mkdir(DATA_FOLDER_PATH, { recursive: true });
-  await writeFile(
-    join(DATA_FOLDER_PATH, fileName),
-    JSON.stringify(data, null, 2),
-  );
+  const target = join(DATA_FOLDER_PATH, fileName);
+  const temp = `${target}.${process.pid}.tmp`;
+
+  try {
+    await mkdir(DATA_FOLDER_PATH, { recursive: true });
+    await writeFile(temp, JSON.stringify(data, null, 2));
+    await rename(temp, target);
+  } catch (err) {
+    await rm(temp, { force: true }).catch(() => {});
+
+    throw new Error(`Error while updating storage file: ${err.message}`, {
+      cause: err,
+    });
+  }
 }
