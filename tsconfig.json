@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "nodenext",
+    "target": "es2024",
+    "types": ["node"],
+    "outDir": "dist",
+    "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true
+  }
+}
