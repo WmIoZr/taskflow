@@ -1,7 +1,17 @@
+import type { ParsedArgs } from "./parser.js";
 import { loadData, saveData } from "./storage.js";
-import { createTask, STATUSES, PRIORITIES } from "./task.js";
+import {
+  createTask,
+  STATUSES,
+  type Task,
+  type NewTask,
+  isStatus,
+  isPriority,
+  type Status,
+  PRIORITIES,
+} from "./task.js";
 
-export async function executeCommand(parsedArgs) {
+export async function executeCommand(parsedArgs: ParsedArgs) {
   switch (parsedArgs.command) {
     case "add": {
       const createdTask = await applyAdd(parsedArgs);
@@ -42,7 +52,7 @@ async function provideStats() {
   return getTaskStatusStats(tasks) + getOverdueStats(tasks);
 }
 
-function getOverdueStats(tasks) {
+function getOverdueStats(tasks: Array<Task>) {
   const localDateString = getLocalDateString();
   const overdueTasks = tasks.filter((task) => {
     if (task.due === null || task.status === "done") return false;
@@ -66,10 +76,13 @@ function getOverdueStats(tasks) {
   return resultString;
 }
 
-function getTaskStatusStats(tasks) {
-  const initialStats = {};
+function getTaskStatusStats(tasks: Array<Task>) {
+  const initialStats: Record<Status, number> = {
+    todo: 0,
+    in_progress: 0,
+    done: 0,
+  };
 
-  STATUSES.forEach((value) => (initialStats[value] = 0));
   const taskStatusCount = tasks.reduce((prev, curr) => {
     prev[curr.status]++;
     return prev;
@@ -77,7 +90,7 @@ function getTaskStatusStats(tasks) {
 
   let resultString = "";
 
-  for (const status in taskStatusCount) {
+  for (const status of STATUSES) {
     resultString += `Tasks with status ${status} - ${taskStatusCount[status]}\n`;
   }
 
@@ -94,7 +107,7 @@ function getLocalDateString() {
   );
 }
 
-async function setDoneById(positionalArgs) {
+async function setDoneById(positionalArgs: Array<string>) {
   const id = checkId(positionalArgs, "done");
   const data = await loadData();
 
@@ -115,7 +128,7 @@ async function setDoneById(positionalArgs) {
   return `Task #${id} status set to 'done'`;
 }
 
-async function deleteById(positionalArgs) {
+async function deleteById(positionalArgs: Array<string>) {
   const id = checkId(positionalArgs, "delete");
   const data = await loadData();
 
@@ -132,12 +145,12 @@ async function deleteById(positionalArgs) {
   return `Task #${id} deleted.`;
 }
 
-function checkId(positionalArgs, command) {
+function checkId(positionalArgs: Array<string>, command: string) {
   if (positionalArgs.length !== 1) {
     throw new Error(`Expected exactly one task id, e.g. ${command} 3`);
   }
 
-  const raw = positionalArgs[0];
+  const raw = positionalArgs[0]!;
 
   if (!/^\d+$/.test(raw)) {
     throw new Error(`Invalid id passed: ${raw}`);
@@ -146,7 +159,7 @@ function checkId(positionalArgs, command) {
   return Number(raw);
 }
 
-async function listTasks(parsedArgs) {
+async function listTasks(parsedArgs: ParsedArgs) {
   const data = await loadData();
   const status = parsedArgs.options.status?.trim().toLowerCase();
   const priority = parsedArgs.options.priority?.trim().toLowerCase();
@@ -154,12 +167,20 @@ async function listTasks(parsedArgs) {
   let filteredTasks = data.tasks;
 
   if (status !== undefined) {
-    checkValueInSet(status, STATUSES);
+    if (!isStatus(status)) {
+      throw new Error(
+        `Invalid value passed: ${status}. Expected ${STATUSES.join("/")}`,
+      );
+    }
     filteredTasks = filteredTasks.filter((task) => task.status === status);
   }
 
   if (priority !== undefined) {
-    checkValueInSet(priority, PRIORITIES);
+    if (!isPriority(priority)) {
+      throw new Error(
+        `Invalid value passed: ${priority}. Expected ${PRIORITIES.join("/")}`,
+      );
+    }
     filteredTasks = filteredTasks.filter((task) => task.priority === priority);
   }
 
@@ -168,7 +189,7 @@ async function listTasks(parsedArgs) {
     : "No tasks found";
 }
 
-function formatTasks(tasks) {
+function formatTasks(tasks: Array<Task>) {
   return tasks
     .map(
       (task) =>
@@ -178,15 +199,7 @@ function formatTasks(tasks) {
     .join("\n");
 }
 
-function checkValueInSet(value, set) {
-  if (!set.has(value)) {
-    throw new Error(
-      `Invalid value passed: ${value}. Expected ${[...set].join(", ")}`,
-    );
-  }
-}
-
-async function applyAdd(parsedArgs) {
+async function applyAdd(parsedArgs: ParsedArgs) {
   const task = createTask(
     parsedArgs.positional.join(" "),
     parsedArgs.options.priority,
@@ -196,10 +209,10 @@ async function applyAdd(parsedArgs) {
   return await saveNewTask(task);
 }
 
-async function saveNewTask(task) {
+async function saveNewTask(task: NewTask) {
   const data = await loadData();
 
-  const newTask = {
+  const newTask: Task = {
     id: data.nextId++,
     ...task,
     createdAt: new Date().toISOString(),
