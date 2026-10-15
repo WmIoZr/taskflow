@@ -17,6 +17,28 @@ export interface Task {
   createdAt: string;
 }
 
+export function isTask(value: unknown): value is Task {
+  if (typeof value !== "object" || value === null) return false;
+
+  return (
+    "id" in value &&
+    Number.isInteger(value.id) &&
+    "name" in value &&
+    typeof value.name === "string" &&
+    value.name.trim() !== "" &&
+    "priority" in value &&
+    typeof value.priority === "string" &&
+    isPriority(value.priority) &&
+    "due" in value &&
+    (typeof value.due === "string" || value.due === null) &&
+    "status" in value &&
+    typeof value.status === "string" &&
+    isStatus(value.status) &&
+    "createdAt" in value &&
+    typeof value.createdAt === "string"
+  );
+}
+
 export type NewTask = Omit<Task, "id" | "createdAt">;
 
 export function createTask(
