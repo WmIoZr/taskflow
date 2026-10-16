@@ -39,7 +39,7 @@ export function isTask(value: unknown): value is Task {
   );
 }
 
-export type NewTask = Omit<Task, "id" | "createdAt">;
+export type NewTask = Omit<Task, "id">;
 
 export function createTask(
   name?: string,
@@ -55,6 +55,7 @@ export function createTask(
     priority: validatePriority(priority),
     due: validateDate(due),
     status: "todo",
+    createdAt: new Date().toISOString(),
   };
 }
 

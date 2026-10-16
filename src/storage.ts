@@ -1,36 +1,32 @@
 import { mkdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { isTask, type Task } from "./task.js";
 import { hasErrorCode, getErrorMessage } from "./errors.js";
 
-interface TaskData {
+export type Guard<T> = (value: unknown) => value is T;
+
+export interface ItemData<T> {
   nextId: number;
-  tasks: Array<Task>;
+  items: Array<T>;
 }
 
-function isTaskData(value: unknown): value is TaskData {
+function isItemData<T>(value: unknown, isItem: Guard<T>): value is ItemData<T> {
   if (typeof value !== "object" || value === null) return false;
 
   return (
     "nextId" in value &&
     Number.isInteger(value.nextId) &&
-    "tasks" in value &&
-    Array.isArray(value.tasks) &&
-    value.tasks.every(isTask)
+    "items" in value &&
+    Array.isArray(value.items) &&
+    value.items.every(isItem)
   );
 }
 
 const DATA_FOLDER_PATH = join(import.meta.dirname, "..", "data");
 
-export async function loadData(): Promise<TaskData> {
-  return await readData("tasks.json");
-}
-
-export async function saveData(data: TaskData) {
-  await writeData("tasks.json", data);
-}
-
-async function readData(fileName: string): Promise<TaskData> {
+export async function loadData<T>(
+  fileName: string,
+  isItem: Guard<T>,
+): Promise<ItemData<T>> {
   let fileData: string;
 
   try {
@@ -39,7 +35,7 @@ async function readData(fileName: string): Promise<TaskData> {
     if (hasErrorCode(err, "ENOENT")) {
       return {
         nextId: 1,
-        tasks: [],
+        items: [],
       };
     }
 
@@ -60,7 +56,7 @@ async function readData(fileName: string): Promise<TaskData> {
     );
   }
 
-  if (!isTaskData(parsed)) {
+  if (!isItemData(parsed, isItem)) {
     throw new Error(
       `${fileName} has an unexpected structure. ` +
         "Fix it or delete it to start over",
@@ -70,7 +66,7 @@ async function readData(fileName: string): Promise<TaskData> {
   return parsed;
 }
 
-async function writeData(fileName: string, data: TaskData) {
+export async function saveData<T>(fileName: string, data: ItemData<T>) {
   const target = join(DATA_FOLDER_PATH, fileName);
   const temp = `${target}.${process.pid}.tmp`;
 
@@ -82,7 +78,7 @@ async function writeData(fileName: string, data: TaskData) {
     await rm(temp, { force: true }).catch(() => {});
 
     throw new Error(
-      `Error while updating storage file: ${getErrorMessage(err)}`,
+      `Error while updating storage file ${fileName}: ${getErrorMessage(err)}`,
       {
         cause: err,
       },
