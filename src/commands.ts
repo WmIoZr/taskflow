@@ -1,4 +1,5 @@
 import type { ParsedArgs } from "./parser.js";
+import { isProject, type Project } from "./project.js";
 import { Repository } from "./repository.js";
 import {
   createTask,
@@ -12,6 +13,7 @@ import {
 } from "./task.js";
 
 const taskRepo = new Repository<Task>("tasks.json", isTask);
+const projectRepo = new Repository<Project>("projects.json", isProject);
 
 export async function executeCommand(parsedArgs: ParsedArgs) {
   switch (parsedArgs.command) {
@@ -189,10 +191,27 @@ function formatTasks(tasks: Array<Task>) {
 }
 
 async function applyAdd(parsedArgs: ParsedArgs) {
+  const projectId = parsedArgs.options.project;
+  if (
+    projectId === undefined ||
+    !/^\d+$/.test(projectId) ||
+    Number(projectId) < 1
+  ) {
+    throw new Error(
+      `Project id should be a positive integer. Passed: ${projectId}`,
+    );
+  }
+  const intProjectId = Number(projectId);
+
+  if ((await projectRepo.findById(intProjectId)) === undefined) {
+    throw new Error(`Project #${intProjectId} not found`);
+  }
+
   const task = createTask(
     parsedArgs.positional.join(" "),
     parsedArgs.options.priority,
     parsedArgs.options.due,
+    intProjectId,
   );
 
   return await taskRepo.create(task);
