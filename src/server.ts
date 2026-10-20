@@ -14,6 +14,8 @@ import {
   isStatus,
   isTask,
   isValidDate,
+  PRIORITIES,
+  STATUSES,
 } from "./task.js";
 import { getErrorMessage } from "./errors.js";
 import {
@@ -50,7 +52,7 @@ const server = createServer(async (request, response) => {
 
     switch (parsedPath[0]) {
       case "tasks": {
-        await handleTasksRequest(request, response, parsedPath);
+        await handleTasksRequest(request, response, parsedPath, url);
         break;
       }
 
@@ -192,10 +194,11 @@ async function handleTasksRequest(
   request: IncomingMessage,
   response: ServerResponse,
   parsedPath: Array<string>,
+  url: URL,
 ) {
   switch (parsedPath.length) {
     case 1: {
-      await handleTasksCollection(request, response);
+      await handleTasksCollection(request, response, url);
       break;
     }
 
@@ -208,13 +211,53 @@ async function handleTasksRequest(
   }
 }
 
+function parseUnionValue<T extends string>(
+  value: string,
+  guard: (value: string) => value is T,
+  allowed: readonly T[],
+): T {
+  if (!guard(value)) {
+    throw new HttpError(
+      400,
+      `Invalid value passed: ${value}. Expected ${allowed.join("/")}`,
+    );
+  }
+
+  return value;
+}
+
 async function handleTasksCollection(
   request: IncomingMessage,
   response: ServerResponse,
+  url: URL,
 ) {
   switch (request.method) {
     case "GET": {
-      sendResponse(response, 200, await taskRepo.findAll());
+      const rawStatus = url.searchParams.get("status")?.trim().toLowerCase();
+      const rawPriority = url.searchParams
+        .get("priority")
+        ?.trim()
+        .toLowerCase();
+
+      let resultCollection: Task[] = await taskRepo.findAll();
+      if (rawStatus !== undefined) {
+        const statusFilter = parseUnionValue(rawStatus, isStatus, STATUSES);
+        resultCollection = resultCollection.filter(
+          (task) => task.status === statusFilter,
+        );
+      }
+      if (rawPriority !== undefined) {
+        const priorityFilter = parseUnionValue(
+          rawPriority,
+          isPriority,
+          PRIORITIES,
+        );
+        resultCollection = resultCollection.filter(
+          (task) => task.priority === priorityFilter,
+        );
+      }
+
+      sendResponse(response, 200, resultCollection);
       break;
     }
 
@@ -274,7 +317,10 @@ async function handleTaskItem(
     case "PATCH": {
       const body = await readValidBody(request, isUpdateTaskBody);
 
-      if (body.projectId && !(await projectRepo.findById(body.projectId))) {
+      if (
+        body.projectId !== undefined &&
+        !(await projectRepo.findById(body.projectId))
+      ) {
         throw new HttpError(400, `Project #${body.projectId} does not exist`);
       }
 

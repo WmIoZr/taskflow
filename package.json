@@ -5,7 +5,9 @@
   "description": "",
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",
