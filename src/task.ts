@@ -59,6 +59,19 @@ export function createTask(
   };
 }
 
+export function isValidDate(stringDate: string): boolean {
+  if (!DATE_FORMAT.test(stringDate)) {
+    return false;
+  }
+
+  const date = new Date(stringDate);
+
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === stringDate
+  );
+}
+
 function validateDate(stringDate?: string) {
   if (stringDate === undefined) {
     return null;
@@ -66,17 +79,10 @@ function validateDate(stringDate?: string) {
 
   stringDate = stringDate.trim();
 
-  if (!DATE_FORMAT.test(stringDate)) {
-    throw new Error(`Invalid date format: ${stringDate}. Expected YYYY-MM-DD`);
-  }
-
-  const date = new Date(stringDate);
-
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.toISOString().slice(0, 10) !== stringDate
-  ) {
-    throw new Error(`Invalid date: ${stringDate}`);
+  if (!isValidDate(stringDate)) {
+    throw new Error(
+      `Invalid date: ${stringDate}. Expected a real date as YYYY-MM-DD`,
+    );
   }
 
   return stringDate;
