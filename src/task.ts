@@ -14,6 +14,7 @@ export interface Task {
   priority: Priority;
   due: string | null;
   status: Status;
+  projectId: number;
   createdAt: string;
 }
 
@@ -34,6 +35,8 @@ export function isTask(value: unknown): value is Task {
     "status" in value &&
     typeof value.status === "string" &&
     isStatus(value.status) &&
+    "projectId" in value &&
+    Number.isInteger(value.projectId) &&
     "createdAt" in value &&
     typeof value.createdAt === "string"
   );
@@ -45,9 +48,17 @@ export function createTask(
   name?: string,
   priority?: string,
   due?: string | null,
+  projectId?: number,
 ): NewTask {
   if (name === undefined || name.trim() === "") {
     throw new Error("Name for task is required for creation");
+  }
+  if (
+    projectId === undefined ||
+    !Number.isInteger(projectId) ||
+    projectId < 1
+  ) {
+    throw new Error("Project id must be a positive integer");
   }
 
   return {
@@ -55,6 +66,7 @@ export function createTask(
     priority: validatePriority(priority),
     due: due === null ? due : validateDate(due),
     status: "todo",
+    projectId: projectId,
     createdAt: new Date().toISOString(),
   };
 }

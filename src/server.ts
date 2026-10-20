@@ -25,7 +25,13 @@ import {
 import type { Guard } from "./storage.js";
 
 const taskRepo = new Repository<Task>("tasks.json", isTask);
-const TASK_UPDATABLE_FIELDS = ["name", "priority", "due", "status"] as const;
+const TASK_UPDATABLE_FIELDS = [
+  "name",
+  "priority",
+  "due",
+  "status",
+  "projectId",
+] as const;
 type UpdateTaskBody = Partial<
   Pick<Task, (typeof TASK_UPDATABLE_FIELDS)[number]>
 >;
@@ -166,6 +172,10 @@ async function handleProjectItem(
     }
 
     case "DELETE": {
+      if ((await taskRepo.findAll()).some((task) => task.projectId === id)) {
+        throw new HttpError(409, `Project #${id} still has tasks`);
+      }
+
       if (await projectRepo.delete(id)) sendResponse(response, 204);
       else throw new HttpError(404, `Project #${id} not found`);
 
@@ -211,9 +221,21 @@ async function handleTasksCollection(
     case "POST": {
       const body = await readValidBody(request, isCreateTaskBody);
 
+      if (
+        body.projectId !== undefined &&
+        !(await projectRepo.findById(body.projectId))
+      ) {
+        throw new HttpError(400, `Project #${body.projectId} does not exist`);
+      }
+
       let newTask: NewTask;
       try {
-        newTask = createTask(body.name, body.priority, body.due);
+        newTask = createTask(
+          body.name,
+          body.priority,
+          body.due,
+          body.projectId,
+        );
       } catch (err) {
         throw new HttpError(
           400,
@@ -251,6 +273,10 @@ async function handleTaskItem(
 
     case "PATCH": {
       const body = await readValidBody(request, isUpdateTaskBody);
+
+      if (body.projectId && !(await projectRepo.findById(body.projectId))) {
+        throw new HttpError(400, `Project #${body.projectId} does not exist`);
+      }
 
       const changes: UpdateTaskBody = {};
       for (const field of TASK_UPDATABLE_FIELDS) {
@@ -298,7 +324,11 @@ function isUpdateTaskBody(value: unknown): value is UpdateTaskBody {
       (typeof value.due === "string" && isValidDate(value.due)) ||
       value.due === null) &&
     (!("status" in value) ||
-      (typeof value.status === "string" && isStatus(value.status)))
+      (typeof value.status === "string" && isStatus(value.status))) &&
+    (!("projectId" in value) ||
+      (typeof value.projectId === "number" &&
+        Number.isInteger(value.projectId) &&
+        value.projectId > 0))
   );
 }
 
@@ -318,6 +348,7 @@ interface CreateTaskBody {
   name?: string;
   priority?: string;
   due?: string | null;
+  projectId?: number;
 }
 
 function isCreateTaskBody(value: unknown): value is CreateTaskBody {
@@ -326,7 +357,13 @@ function isCreateTaskBody(value: unknown): value is CreateTaskBody {
   return (
     (!("name" in value) || typeof value.name === "string") &&
     (!("priority" in value) || typeof value.priority === "string") &&
-    (!("due" in value) || typeof value.due === "string" || value.due === null)
+    (!("due" in value) ||
+      typeof value.due === "string" ||
+      value.due === null) &&
+    (!("projectId" in value) ||
+      (typeof value.projectId === "number" &&
+        Number.isInteger(value.projectId) &&
+        value.projectId > 0))
   );
 }
 
