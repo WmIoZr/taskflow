@@ -44,7 +44,7 @@ export type NewTask = Omit<Task, "id">;
 export function createTask(
   name?: string,
   priority?: string,
-  due?: string,
+  due?: string | null,
 ): NewTask {
   if (name === undefined || name.trim() === "") {
     throw new Error("Name for task is required for creation");
@@ -53,7 +53,7 @@ export function createTask(
   return {
     name: name.trim(),
     priority: validatePriority(priority),
-    due: validateDate(due),
+    due: due === null ? due : validateDate(due),
     status: "todo",
     createdAt: new Date().toISOString(),
   };
@@ -73,7 +73,7 @@ export function isValidDate(stringDate: string): boolean {
 }
 
 function validateDate(stringDate?: string) {
-  if (stringDate === undefined) {
+  if (stringDate == undefined) {
     return null;
   }
 
