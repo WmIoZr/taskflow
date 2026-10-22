@@ -1,7 +1,21 @@
-import { loadData, saveData } from "./storage.js";
-import { createTask, STATUSES, PRIORITIES } from "./task.js";
+import type { ParsedArgs } from "./parser.js";
+import { isProject, type Project } from "./project.js";
+import { Repository } from "./repository.js";
+import {
+  createTask,
+  STATUSES,
+  type Task,
+  isStatus,
+  isPriority,
+  type Status,
+  PRIORITIES,
+  isTask,
+} from "./task.js";
 
-export async function executeCommand(parsedArgs) {
+const taskRepo = new Repository<Task>("tasks.json", isTask);
+const projectRepo = new Repository<Project>("projects.json", isProject);
+
+export async function executeCommand(parsedArgs: ParsedArgs) {
   switch (parsedArgs.command) {
     case "add": {
       const createdTask = await applyAdd(parsedArgs);
@@ -32,8 +46,7 @@ export async function executeCommand(parsedArgs) {
 }
 
 async function provideStats() {
-  const data = await loadData();
-  const tasks = data.tasks;
+  const tasks = await taskRepo.findAll();
 
   if (tasks.length === 0) {
     return "No tasks to show stats";
@@ -42,7 +55,7 @@ async function provideStats() {
   return getTaskStatusStats(tasks) + getOverdueStats(tasks);
 }
 
-function getOverdueStats(tasks) {
+function getOverdueStats(tasks: Array<Task>) {
   const localDateString = getLocalDateString();
   const overdueTasks = tasks.filter((task) => {
     if (task.due === null || task.status === "done") return false;
@@ -66,10 +79,13 @@ function getOverdueStats(tasks) {
   return resultString;
 }
 
-function getTaskStatusStats(tasks) {
-  const initialStats = {};
+function getTaskStatusStats(tasks: Array<Task>) {
+  const initialStats: Record<Status, number> = {
+    todo: 0,
+    in_progress: 0,
+    done: 0,
+  };
 
-  STATUSES.forEach((value) => (initialStats[value] = 0));
   const taskStatusCount = tasks.reduce((prev, curr) => {
     prev[curr.status]++;
     return prev;
@@ -77,7 +93,7 @@ function getTaskStatusStats(tasks) {
 
   let resultString = "";
 
-  for (const status in taskStatusCount) {
+  for (const status of STATUSES) {
     resultString += `Tasks with status ${status} - ${taskStatusCount[status]}\n`;
   }
 
@@ -94,13 +110,11 @@ function getLocalDateString() {
   );
 }
 
-async function setDoneById(positionalArgs) {
+async function setDoneById(positionalArgs: Array<string>) {
   const id = checkId(positionalArgs, "done");
-  const data = await loadData();
+  const taskToUpdate = await taskRepo.findById(id);
 
-  const taskToUpdate = data.tasks.find((task) => task.id === id);
-
-  if (!taskToUpdate) {
+  if (taskToUpdate === undefined) {
     throw new Error(`Task #${id} not found`);
   }
 
@@ -108,36 +122,28 @@ async function setDoneById(positionalArgs) {
     return `Task #${id} status was already 'done'`;
   }
 
-  taskToUpdate.status = "done";
-
-  await saveData(data);
+  await taskRepo.update(id, { status: "done" });
 
   return `Task #${id} status set to 'done'`;
 }
 
-async function deleteById(positionalArgs) {
+async function deleteById(positionalArgs: Array<string>) {
   const id = checkId(positionalArgs, "delete");
-  const data = await loadData();
 
-  const deleteIdx = data.tasks.findIndex((task) => task.id === id);
-
-  if (deleteIdx === -1) {
+  const isDeleted = await taskRepo.delete(id);
+  if (!isDeleted) {
     throw new Error(`Task #${id} not found`);
   }
-
-  data.tasks.splice(deleteIdx, 1);
-
-  await saveData(data);
 
   return `Task #${id} deleted.`;
 }
 
-function checkId(positionalArgs, command) {
+function checkId(positionalArgs: Array<string>, command: string) {
   if (positionalArgs.length !== 1) {
     throw new Error(`Expected exactly one task id, e.g. ${command} 3`);
   }
 
-  const raw = positionalArgs[0];
+  const raw = positionalArgs[0]!;
 
   if (!/^\d+$/.test(raw)) {
     throw new Error(`Invalid id passed: ${raw}`);
@@ -146,20 +152,26 @@ function checkId(positionalArgs, command) {
   return Number(raw);
 }
 
-async function listTasks(parsedArgs) {
-  const data = await loadData();
+async function listTasks(parsedArgs: ParsedArgs) {
+  let filteredTasks = await taskRepo.findAll();
   const status = parsedArgs.options.status?.trim().toLowerCase();
   const priority = parsedArgs.options.priority?.trim().toLowerCase();
 
-  let filteredTasks = data.tasks;
-
   if (status !== undefined) {
-    checkValueInSet(status, STATUSES);
+    if (!isStatus(status)) {
+      throw new Error(
+        `Invalid value passed: ${status}. Expected ${STATUSES.join("/")}`,
+      );
+    }
     filteredTasks = filteredTasks.filter((task) => task.status === status);
   }
 
   if (priority !== undefined) {
-    checkValueInSet(priority, PRIORITIES);
+    if (!isPriority(priority)) {
+      throw new Error(
+        `Invalid value passed: ${priority}. Expected ${PRIORITIES.join("/")}`,
+      );
+    }
     filteredTasks = filteredTasks.filter((task) => task.priority === priority);
   }
 
@@ -168,7 +180,7 @@ async function listTasks(parsedArgs) {
     : "No tasks found";
 }
 
-function formatTasks(tasks) {
+function formatTasks(tasks: Array<Task>) {
   return tasks
     .map(
       (task) =>
@@ -178,36 +190,29 @@ function formatTasks(tasks) {
     .join("\n");
 }
 
-function checkValueInSet(value, set) {
-  if (!set.has(value)) {
+async function applyAdd(parsedArgs: ParsedArgs) {
+  const projectId = parsedArgs.options.project;
+  if (
+    projectId === undefined ||
+    !/^\d+$/.test(projectId) ||
+    Number(projectId) < 1
+  ) {
     throw new Error(
-      `Invalid value passed: ${value}. Expected ${[...set].join(", ")}`,
+      `Project id should be a positive integer. Passed: ${projectId}`,
     );
   }
-}
+  const intProjectId = Number(projectId);
 
-async function applyAdd(parsedArgs) {
+  if ((await projectRepo.findById(intProjectId)) === undefined) {
+    throw new Error(`Project #${intProjectId} not found`);
+  }
+
   const task = createTask(
     parsedArgs.positional.join(" "),
     parsedArgs.options.priority,
     parsedArgs.options.due,
+    intProjectId,
   );
 
-  return await saveNewTask(task);
-}
-
-async function saveNewTask(task) {
-  const data = await loadData();
-
-  const newTask = {
-    id: data.nextId++,
-    ...task,
-    createdAt: new Date().toISOString(),
-  };
-
-  data.tasks.unshift(newTask);
-
-  await saveData(data);
-
-  return newTask;
+  return await taskRepo.create(task);
 }
