@@ -78,7 +78,9 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(3000, () => console.log("Listening on http://localhost:3000"));
+server.listen(3000, "127.0.0.1", () =>
+  console.log("Listening on http://localhost:3000"),
+);
 
 async function handleProjectsRequest(
   request: IncomingMessage,

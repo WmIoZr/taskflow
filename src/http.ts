@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+const MAX_BODY_BYTES = 1_000_000;
+
 export class HttpError extends Error {
   readonly status: number;
 
@@ -36,7 +38,15 @@ export async function getBodyObject(
   request: IncomingMessage,
 ): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of request) chunks.push(chunk);
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) {
+      throw new HttpError(413, "Request body is too large");
+    }
+    chunks.push(chunk);
+  }
+
   const text = Buffer.concat(chunks).toString("utf8");
 
   let body: unknown;
