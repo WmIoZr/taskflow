@@ -2,6 +2,10 @@
 
 Task tracker (internship project): a CLI and a REST API on bare `node:http`, written in TypeScript.
 
+## Warnings
+
+Don’t run the CLI while the server is running: both write to the same files, and the server’s write queue doesn’t cover a second process.
+
 ## Setup
 
 Requires Node.js 24.

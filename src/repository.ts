@@ -5,7 +5,13 @@ type HasId = { id: number };
 export class Repository<T extends HasId> {
   private readonly fileName: string;
   private readonly isItem: Guard<T>;
-  private cache?: ItemData<T>;
+  private queue: Promise<unknown> = Promise.resolve();
+
+  private enqueue<R>(job: () => Promise<R>): Promise<R> {
+    const run = this.queue.then(job);
+    this.queue = run.catch(() => {});
+    return run;
+  }
 
   constructor(fileName: string, itemValidator: Guard<T>) {
     this.fileName = fileName;
@@ -13,13 +19,7 @@ export class Repository<T extends HasId> {
   }
 
   private async getData(): Promise<ItemData<T>> {
-    if (!this.cache) {
-      const data = await loadData(this.fileName, this.isItem);
-      this.cache = data;
-      return data;
-    }
-
-    return this.cache;
+    return loadData(this.fileName, this.isItem);
   }
 
   async findAll(): Promise<T[]> {
@@ -35,68 +35,74 @@ export class Repository<T extends HasId> {
   }
 
   async create(newItem: Omit<T, "id">): Promise<T> {
-    const data = await this.getData();
+    return this.enqueue(async () => {
+      const data = await this.getData();
 
-    const item: unknown = {
-      id: data.nextId,
-      ...newItem,
-    };
+      const item: unknown = {
+        id: data.nextId,
+        ...newItem,
+      };
 
-    if (!this.isItem(item)) {
-      throw new Error(
-        `Unknown item was passed to be saved: ${JSON.stringify(item, null, 2)}`,
-      );
-    }
+      if (!this.isItem(item)) {
+        throw new Error(
+          `Unknown item was passed to be saved: ${JSON.stringify(item, null, 2)}`,
+        );
+      }
 
-    data.items.unshift(item);
-    data.nextId++;
+      data.items.unshift(item);
+      data.nextId++;
 
-    await saveData(this.fileName, data);
+      await saveData(this.fileName, data);
 
-    return structuredClone(item);
+      return structuredClone(item);
+    });
   }
 
   async update(
     id: number,
     changes: Partial<Omit<T, "id">>,
   ): Promise<T | undefined> {
-    const data = await this.getData();
+    return this.enqueue(async () => {
+      const data = await this.getData();
 
-    const itemToUpdateIdx = data.items.findIndex((item) => item.id === id);
-    if (itemToUpdateIdx === -1) {
-      return undefined;
-    }
-    const mergedItem: unknown = {
-      ...data.items[itemToUpdateIdx],
-      ...changes,
-      id,
-    };
+      const itemToUpdateIdx = data.items.findIndex((item) => item.id === id);
+      if (itemToUpdateIdx === -1) {
+        return undefined;
+      }
+      const mergedItem: unknown = {
+        ...data.items[itemToUpdateIdx],
+        ...changes,
+        id,
+      };
 
-    if (!this.isItem(mergedItem)) {
-      throw new Error(
-        `Invalid values were passed for update: ${JSON.stringify(changes)}`,
-      );
-    }
+      if (!this.isItem(mergedItem)) {
+        throw new Error(
+          `Invalid values were passed for update: ${JSON.stringify(changes)}`,
+        );
+      }
 
-    data.items[itemToUpdateIdx] = mergedItem;
+      data.items[itemToUpdateIdx] = mergedItem;
 
-    await saveData(this.fileName, data);
+      await saveData(this.fileName, data);
 
-    return structuredClone(mergedItem);
+      return structuredClone(mergedItem);
+    });
   }
 
   async delete(id: number): Promise<boolean> {
-    const data = await this.getData();
+    return this.enqueue(async () => {
+      const data = await this.getData();
 
-    const items = data.items;
-    const delIdx = items.findIndex((item) => item.id === id);
-    if (delIdx === -1) {
-      return false;
-    }
-    items.splice(delIdx, 1);
+      const items = data.items;
+      const delIdx = items.findIndex((item) => item.id === id);
+      if (delIdx === -1) {
+        return false;
+      }
+      items.splice(delIdx, 1);
 
-    await saveData(this.fileName, data);
+      await saveData(this.fileName, data);
 
-    return true;
+      return true;
+    });
   }
 }
