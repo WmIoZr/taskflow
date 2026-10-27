@@ -4,3 +4,5 @@ node_modules/
 tasks.json
 data/
 dist/
+coverage/
+*.tsbuildinfo
