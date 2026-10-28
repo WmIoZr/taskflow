@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,77 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id           Int             @id @default(autoincrement())
+  username     String
+  passwordHash String
+  email        String          @unique
+  projects     ProjectMember[]
+  comments     Comment[]
+}
+
+model Task {
+  id        Int       @id @default(autoincrement())
+  name      String
+  due       DateTime? @db.Date
+  priority  Priority  @default(MEDIUM)
+  status    Status    @default(TODO)
+  createdAt DateTime  @default(now())
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  projectId Int
+  comments  Comment[]
+
+  @@index([projectId])
+}
+
+model Project {
+  id          Int             @id @default(autoincrement())
+  name        String
+  description String?
+  tasks       Task[]
+  members     ProjectMember[]
+  createdAt   DateTime        @default(now())
+}
+
+model ProjectMember {
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  role      ProjectRole @default(MEMBER)
+  joinedAt  DateTime    @default(now())
+
+  @@id([projectId, userId])
+  @@index([userId])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  text      String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    Int
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId  Int?
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum Status {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum ProjectRole {
+  OWNER
+  MEMBER
 }
