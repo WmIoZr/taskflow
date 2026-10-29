@@ -12,7 +12,7 @@ export class ProjectsService {
   }
 
   findAll() {
-    return this.prisma.project.findMany();
+    return this.prisma.project.findMany({ orderBy: { id: 'asc' } });
   }
 
   async findOne(id: number) {
