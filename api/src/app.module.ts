@@ -7,7 +7,8 @@ import { UsersModule } from './users/users.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { CommentsModule } from './comments/comments.module.js';
-import { APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_PIPE } from '@nestjs/core';
+import { PrismaExceptionFilter } from './prisma/prisma-exception.filter.js';
 
 @Module({
   imports: [
@@ -28,6 +29,10 @@ import { APP_PIPE } from '@nestjs/core';
         whitelist: true,
         forbidNonWhitelisted: true,
       }),
+    },
+    {
+      provide: APP_FILTER,
+      useClass: PrismaExceptionFilter,
     },
   ],
 })
