@@ -9,6 +9,7 @@ import { TasksModule } from './tasks/tasks.module.js';
 import { CommentsModule } from './comments/comments.module.js';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { PrismaExceptionFilter } from './prisma/prisma-exception.filter.js';
+import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PrismaExceptionFilter } from './prisma/prisma-exception.filter.js';
     ProjectsModule,
     TasksModule,
     CommentsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
