@@ -1,1 +1,9 @@
-export class CreateCommentDto {}
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsString } from 'class-validator';
+
+export class CreateCommentDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  text!: string;
+}
