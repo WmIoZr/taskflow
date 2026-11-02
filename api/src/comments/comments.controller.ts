@@ -13,6 +13,8 @@ import {
 import { CommentsService } from './comments.service.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
 import { UpdateCommentDto } from './dto/update-comment.dto.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { type JwtPayload } from '../auth/jwt-payload.js';
 
 @Controller()
 export class CommentsController {
@@ -22,8 +24,13 @@ export class CommentsController {
   async create(
     @Param('taskId', ParseIntPipe) taskId: number,
     @Body() createCommentDto: CreateCommentDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return await this.commentsService.create(taskId, createCommentDto);
+    return await this.commentsService.create(
+      taskId,
+      user.sub,
+      createCommentDto,
+    );
   }
 
   @Get('tasks/:taskId/comments')

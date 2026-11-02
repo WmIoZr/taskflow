@@ -8,11 +8,16 @@ import { Prisma } from '../generated/prisma/client.js';
 export class CommentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(taskId: number, createCommentDto: CreateCommentDto) {
+  async create(
+    taskId: number,
+    authorId: number,
+    createCommentDto: CreateCommentDto,
+  ) {
     await this.checkTaskExists(taskId);
     return this.prisma.comment.create({
       data: {
         ...createCommentDto,
+        authorId,
         taskId,
       },
       include: withAuthor,
