@@ -7,8 +7,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(createProjectDto: CreateProjectDto) {
-    return this.prisma.project.create({ data: createProjectDto });
+  create(createProjectDto: CreateProjectDto, userId: number) {
+    return this.prisma.project.create({
+      data: {
+        ...createProjectDto,
+        members: { create: { userId, role: 'OWNER' } },
+      },
+    });
   }
 
   findAll() {

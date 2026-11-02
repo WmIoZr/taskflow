@@ -13,14 +13,19 @@ import {
 import { ProjectsService } from './projects.service.js';
 import { CreateProjectDto } from './dto/create-project.dto.js';
 import { UpdateProjectDto } from './dto/update-project.dto.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { type JwtPayload } from '../auth/jwt-payload.js';
 
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
-  async create(@Body() createProjectDto: CreateProjectDto) {
-    return await this.projectsService.create(createProjectDto);
+  async create(
+    @Body() createProjectDto: CreateProjectDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return await this.projectsService.create(createProjectDto, user.sub);
   }
 
   @Get()
