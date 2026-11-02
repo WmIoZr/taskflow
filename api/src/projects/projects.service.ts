@@ -56,6 +56,18 @@ export class ProjectsService {
     });
   }
 
+  async addMember(projectId: number, userId: number, newMemberId: number) {
+    await this.findOne(projectId);
+    await this.assertMember(projectId, userId);
+
+    return this.prisma.projectMember.create({
+      data: {
+        projectId,
+        userId: newMemberId,
+      },
+    });
+  }
+
   async assertMember(projectId: number, userId: number) {
     const member = await this.prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId } },
