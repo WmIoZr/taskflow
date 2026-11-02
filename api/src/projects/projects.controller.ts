@@ -42,13 +42,17 @@ export class ProjectsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectDto: UpdateProjectDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return await this.projectsService.update(id, updateProjectDto);
+    return await this.projectsService.update(id, user.sub, updateProjectDto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.projectsService.remove(id);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    await this.projectsService.remove(id, user.sub);
   }
 }

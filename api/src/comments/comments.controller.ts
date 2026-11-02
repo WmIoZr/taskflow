@@ -47,13 +47,17 @@ export class CommentsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCommentDto: UpdateCommentDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return await this.commentsService.update(id, updateCommentDto);
+    return await this.commentsService.update(id, user.sub, updateCommentDto);
   }
 
   @Delete('comments/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.commentsService.remove(id);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    await this.commentsService.remove(id, user.sub);
   }
 }

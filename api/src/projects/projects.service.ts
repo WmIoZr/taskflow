@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto.js';
 import { UpdateProjectDto } from './dto/update-project.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -31,16 +35,33 @@ export class ProjectsService {
     return project;
   }
 
-  update(id: number, updateProjectDto: UpdateProjectDto) {
+  async update(id: number, userId: number, updateProjectDto: UpdateProjectDto) {
+    await this.findOne(id);
+
+    await this.assertMember(id, userId);
+
     return this.prisma.project.update({
       where: { id },
       data: updateProjectDto,
     });
   }
 
-  remove(id: number) {
+  async remove(id: number, userId: number) {
+    await this.findOne(id);
+
+    await this.assertMember(id, userId);
+
     return this.prisma.project.delete({
       where: { id },
     });
+  }
+
+  async assertMember(projectId: number, userId: number) {
+    const member = await this.prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId } },
+    });
+    if (member === null) {
+      throw new ForbiddenException('You are not a member of this project');
+    }
   }
 }
