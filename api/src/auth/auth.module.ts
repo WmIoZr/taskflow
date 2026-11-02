@@ -4,9 +4,17 @@ import { AuthController } from './auth.controller.js';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module.js';
 import { ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { AuthGuard } from './auth.guard.js';
 
 @Module({
-  providers: [AuthService],
+  providers: [
+    AuthService,
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
+  ],
   controllers: [AuthController],
   imports: [
     UsersModule,
@@ -25,9 +33,7 @@ import { ConfigService } from '@nestjs/config';
         return {
           secret: config.getOrThrow<string>('JWT_SECRET'),
           signOptions: {
-            expiresIn: Number(
-              config.getOrThrow<string>('JWT_EXPIRES_IN_SECONDS'),
-            ),
+            expiresIn,
           },
         };
       },
