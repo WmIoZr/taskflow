@@ -16,8 +16,10 @@ import { UpdateProjectDto } from './dto/update-project.dto.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { type JwtPayload } from '../auth/jwt-payload.js';
 import { AddMemberDto } from './dto/add-member.dto.js';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('projects')
+@ApiBearerAuth()
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 

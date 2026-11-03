@@ -9,6 +9,7 @@ import {
   IsString,
 } from 'class-validator';
 import { Priority } from '../../generated/prisma/enums.js';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTaskDto {
   @IsString()
@@ -26,6 +27,13 @@ export class CreateTaskDto {
   })
   @IsDate({ message: 'due must be a valid date in YYYY-MM-DD format' })
   @IsOptional()
+  @ApiProperty({
+    type: String,
+    format: 'date',
+    example: '2026-10-29',
+    required: false,
+    nullable: true,
+  })
   due?: Date | null;
 
   @IsOptional()

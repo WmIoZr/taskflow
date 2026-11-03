@@ -17,8 +17,10 @@ import { UpdateTaskDto } from './dto/update-task.dto.js';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { type JwtPayload } from '../auth/jwt-payload.js';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('tasks')
+@ApiBearerAuth()
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
