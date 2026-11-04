@@ -1,71 +1,84 @@
 # TaskFlow
 
-Task tracker (internship project): a CLI and a REST API on bare `node:http`, written in TypeScript.
-
-## Warnings
-
-Don’t run the CLI while the server is running: both write to the same files, and the server’s write queue doesn’t cover a second process.
+Task tracker (internship project): a REST API built with NestJS, PostgreSQL and Prisma, in `api/`. Users register and log in with JWT; only members of a project can change its tasks and comments.
 
 ## Setup
 
-Requires Node.js 24.
+### Prerequisites
 
-```
-npm install
-```
+Node.js 20.19+ or 22.12+ and Docker Desktop.
 
-## REST API
+### Steps
 
-Start the server (restarts on file changes):
+1. Clone the repository and enter the API folder:
 
-```
-npm run dev
-```
+   ```powershell
+   git clone https://github.com/WmIoZr/taskflow
+   cd taskflow/api
+   ```
 
-It listens on `http://localhost:3000`.
+2. Install dependencies:
 
-Projects:
+   ```powershell
+   npm ci
+   ```
 
-- `GET /projects`, `POST /projects`
-- `GET /projects/:id`, `PATCH /projects/:id`, `DELETE /projects/:id` (409 if the project still has tasks)
+3. Create `.env` from `.env.example` and fill in your local values. `DB_PASSWORD` must match the password inside `DATABASE_URL`:
 
-Tasks:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
 
-- `GET /tasks`, with optional filters `?status=todo|in_progress|done` and `?priority=low|medium|high`
-- `POST /tasks` (`name` and `projectId` required; `priority` defaults to medium, `due` is optional, YYYY-MM-DD)
-- `GET /tasks/:id`, `PATCH /tasks/:id`, `DELETE /tasks/:id`
+4. Start the database:
 
-Responses are JSON. Status codes: 200, 201 (created), 204 (deleted), 400 (invalid input), 404 (not found), 405 (method not allowed), 409 (conflict), 500 (logged server error).
+   ```powershell
+   docker compose up -d --wait
+   ```
 
-### Postman
+5. Apply migrations:
 
-`postman/taskflow.postman_collection.json` contains every endpoint, including the error cases, with tests. Import it in Postman, start the server, and run the whole collection in order: later requests use ids saved by earlier ones.
+   ```powershell
+   npx prisma migrate deploy
+   ```
 
-## CLI
+6. Generate the client:
 
-```
-npx tsx src/taskflow.ts <command>
-```
+   ```powershell
+   npx prisma generate
+   ```
 
-Commands:
+7. Start the app:
 
-- `add <name> --project <id> [--priority low|medium|high] [--due YYYY-MM-DD]`: create a task in an existing project (priority defaults to medium)
-- `list [--status todo|in_progress|done] [--priority low|medium|high]`: show tasks, newest first
-- `done <id>`: mark a task as done
-- `delete <id>`: delete a task
-- `stats`: count tasks per status and list overdue ones
+   ```powershell
+   npm run start:dev
+   ```
 
-The CLI can't create projects: create them through the API first.
+   The API is available at http://localhost:3000.
 
-## Data
+If port 5433 is taken, change `POSTGRES_MACHINE_PORT` and the port in `DATABASE_URL` together.
 
-Stored in `data/tasks.json` and `data/projects.json`, created on first use. The CLI and the server share them.
+## Scripts
 
-## Development
+Run from `api/`:
 
-- `npm run check`: type-check without building
-- `npm run build`: compile to `dist/`, then run `node dist/server.js` or `node dist/taskflow.js <command>`
-- `npm run start`: starts the server after the app was compiled into `dist/`
+| Script              | What it does                                           |
+| ------------------- | ------------------------------------------------------ |
+| `npm run start:dev` | Starts the API and restarts it on file changes         |
+| `npm run check`     | Type-checks the project without building               |
+| `npm run test`      | Runs the unit tests                                    |
+| `npm run test:e2e`  | Runs the end-to-end tests (needs the database running) |
+
+## API documentation
+
+Swagger UI is available at http://localhost:3000/api while the app is running.
+
+Most endpoints need a token: call `POST /auth/register`, then `POST /auth/login`, click **Authorize** and paste the `accessToken` from the login response.
+
+## Testing
+
+- **Unit tests** (`npm run test`) check `TasksService` with its dependencies mocked, without a database.
+- **End-to-end test** (`npm run test:e2e`) starts the real app and runs register → login → create project → create task against the database. It uses the development database and deletes what it created.
+- **Postman collection**: `api/postman/taskflow.postman_collection.json`. Import it into Postman and run the whole collection with the Collection Runner while the app and database are running. Run it from the start: the Auth folder registers a fresh user and saves the token that every other request uses.
 
 ## What was tough
 
@@ -88,3 +101,13 @@ All those were resolved by reading manual and asking AI.
 - Types don't exist in the runtime, so you should make sure that you are truly updating object with only required field. JSON.parse() returns any, should be treated as unknown and type checked.
 
 Resolved the same way as week's 1 issues.
+
+### Week 3:
+
+- Recurring problem of missing await and some decorators while implementing Nest components;
+- Conflicts of versions: new Nest docs doesn’t describe the simple @nestjs/jwt + guard flow anymore, rather cluttered bunch of most currently used practices (OIDC, email verification, session based authen complitely missing JWT one, etc.), Prisma 8 being AI-centric and completely rewritten from 7.
+- Connection to the database in Postgres adapter’s connection pool is lazy. To check it, you should specifically query `SELECT 1`;
+- `transform: true` property does work with function parameters, but not in a way one may expect (it will transform query param or path variable to, e.g., number, but it won't throw on 1.5 when you expect integer). So dedicated pipe should be used;
+- undefined and null are treated differently by Prisma: first acts as a column absence or no condition in where (allowing not to check if value for filter is defined while quering, NOT UPDATING), second is the same as SQL NULL.
+
+Resolvations are the same as in week 1.
